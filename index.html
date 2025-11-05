@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #000;
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            grid-gap: 1px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .pixel {
+            width: 30px;
+            height: 30px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .cooldown {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .tools {
+            margin-bottom: 20px;
+        }
+        .tools button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixel Art</h1>
+
+    <!-- Панель инструментов -->
+    <div class="tools">
+        <label for="colorPicker">Выберите цвет:</label>
+        <input type="color" id="colorPicker" value="#ffffff">
+
+        <button id="eyedropperButton">Использовать пипетку</button>
+    </div>
+
+    <div class="grid" id="pixelGrid"></div>
+    <div class="cooldown" id="cooldownMessage"></div>
+
+    <script>
+        const gridSize = 10; // Размер сетки 10x10
+        let cooldown = false;
+
+        // Состояние сетки (хранится в localStorage)
+        let grid = JSON.parse(localStorage.getItem('grid')) || Array(gridSize * gridSize).fill('#FFFFFF');
+        let selectedColor = '#ffffff'; // Цвет по умолчанию
+
+        // Создание сетки
+        function createGrid() {
+            const gridElement = document.getElementById('pixelGrid');
+            grid.forEach((color, index) => {
+                const pixel = document.createElement('div');
+                pixel.classList.add('pixel');
+                pixel.style.backgroundColor = color;
+                pixel.dataset.index = index;
+                pixel.addEventListener('click', handlePixelClick);
+                gridElement.appendChild(pixel);
+            });
+        }
+
+        // Обработка клика по пикселю
+        function handlePixelClick(event) {
+            if (cooldown) {
+                alert('Подождите 15 минут перед следующим действием.');
+                return;
+            }
+
+            const index = event.target.dataset.index;
+            grid[index] = selectedColor;
+            event.target.style.backgroundColor = selectedColor;
+
+            // Сохраняем состояние сетки в localStorage
+            localStorage.setItem('grid', JSON.stringify(grid));
+
+            // Запускаем таймер ожидания
+            startCooldown();
+        }
+
+        // Запуск таймера ожидания
+        function startCooldown() {
+            cooldown = true;
+            document.getElementById('cooldownMessage').textContent = 'Подождите 15 минут...';
+            setTimeout(() => {
+                cooldown = false;
+                document.getElementById('cooldownMessage').textContent = '';
+            }, 15 * 60 * 1000); // 15 минут
+        }
+
+        // Обновление выбранного цвета из палитры
+        document.getElementById('colorPicker').addEventListener('input', (event) => {
+            selectedColor = event.target.value;
+        });
+
+        // Обработка пипетки
+        document.getElementById('eyedropperButton').addEventListener('click', async () => {
+            if (!window.EyeDropper) {
+                alert('Ваш браузер не поддерживает пипетку. Попробуйте использовать Chrome.');
+                return;
+            }
+
+            const eyeDropper = new EyeDropper();
+            try {
+                const result = await eyeDropper.open();
+                selectedColor = result.sRGBHex;
+                document.getElementById('colorPicker').value = selectedColor; // Обновляем палитру
+            } catch (error) {
+                console.error('Ошибка при использовании пипетки:', error);
+            }
+        });
+
+        // Инициализация
+        createGrid();
+    </script>
+</body>
+</html>
