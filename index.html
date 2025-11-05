@@ -102,6 +102,9 @@
 
             const index = event.target.dataset.index;
 
+            // Отладка: выводим индекс и выбранный цвет
+            console.log('Клик по пикселю:', index, 'Цвет:', selectedColor);
+
             // Сохраняем цвет в Firebase
             set(ref(database, `pixels/${index}`), selectedColor);
 
@@ -122,6 +125,7 @@
         // Выбор цвета из палитры
         document.getElementById('colorPicker').addEventListener('input', (event) => {
             selectedColor = event.target.value;
+            console.log('Выбранный цвет:', selectedColor); // Отладка
         });
 
         // Использование пипетки
@@ -135,6 +139,7 @@
                 const result = await eyeDropper.open();
                 selectedColor = result.sRGBHex;
                 document.getElementById('colorPicker').value = selectedColor;
+                console.log('Цвет выбран пипеткой:', selectedColor); // Отладка
             } catch (error) {
                 console.error('Ошибка при использовании пипетки:', error);
             }
@@ -146,7 +151,10 @@
             if (pixels) {
                 Object.entries(pixels).forEach(([index, color]) => {
                     const pixel = document.querySelector(`.pixel[data-index="${index}"]`);
-                    if (pixel) pixel.style.backgroundColor = color;
+                    if (pixel) {
+                        pixel.style.backgroundColor = color;
+                        console.log('Обновлен пиксель:', index, 'Цвет:', color); // Отладка
+                    }
                 });
             }
         });
