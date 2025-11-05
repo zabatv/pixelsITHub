@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Art Multiplayer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #000;
+            text-align: center;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(100, 10px); /* 1000 пикселей */
+            grid-gap: 1px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .pixel {
+            width: 10px;
+            height: 10px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .tools {
+            margin-bottom: 20px;
+        }
+        .tools button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixel Art Multiplayer</h1>
+
+    <!-- Панель инструментов -->
+    <div class="tools">
+        <label for="colorPicker">Выберите цвет:</label>
+        <input type="color" id="colorPicker" value="#ffffff">
+
+        <button id="eyedropperButton">Использовать пипетку</button>
+    </div>
+
+    <div class="grid" id="pixelGrid"></div>
+    <div class="cooldown" id="cooldownMessage"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+    <script>
+        // Конфигурация Firebase (замените на свои данные)
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Инициализация Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const gridSize = 100; // Размер сетки 100x100 (1000 пикселей)
+        let cooldown = false;
+
+        // Состояние сетки
+        let grid = Array(gridSize * gridSize).fill('#FFFFFF');
+        let selectedColor = '#ffffff'; // Цвет по умолчанию
+
+        // Создание сетки
+        function createGrid() {
+            const gridElement = document.getElementById('pixelGrid');
+            grid.forEach((color, index) => {
+                const pixel = document.createElement('div');
+                pixel.classList.add('pixel');
+                pixel.style.backgroundColor = color;
+                pixel.dataset.index = index;
+                pixel.addEventListener('click', handlePixelClick);
+                gridElement.appendChild(pixel);
+            });
+        }
+
+        // Обработка клика по пикселю
+        function handlePixelClick(event) {
+            if (cooldown) {
+                alert('Подождите 15 минут перед следующим действием.');
+                return;
+            }
+
+            const index = event.target.dataset.index;
+            const color = selectedColor;
+
+            // Обновляем цвет на сервере Firebase
+            database.ref(`pixels/${index}`).set(color);
+
+            // Запускаем таймер ожидания
+            startCooldown();
+        }
+
+        // Запуск таймера ожидания
+        function startCooldown() {
+            cooldown = true;
+            document.getElementById('cooldownMessage').textContent = 'Подождите 15 минут...';
+            setTimeout(() => {
+                cooldown = false;
+                document.getElementById('cooldownMessage').textContent = '';
+            }, 15 * 60 * 1000); // 15 минут
+        }
+
+        // Обновление выбранного цвета из палитры
+        document.getElementById('colorPicker').addEventListener('input', (event) => {
+            selectedColor = event.target.value;
+        });
+
+        // Обработка пипетки
+        document.getElementById('eyedropperButton').addEventListener('click', async () => {
+            if (!window.EyeDropper) {
+                alert('Ваш браузер не поддерживает пипетку. Попробуйте использовать Chrome.');
+                return;
+            }
+
+            const eyeDropper = new EyeDropper();
+            try {
+                const result = await eyeDropper.open();
+                selectedColor = result.sRGBHex;
+                document.getElementById('colorPicker').value = selectedColor; // Обновляем палитру
+            } catch (error) {
+                console.error('Ошибка при использовании пипетки:', error);
+            }
+        });
+
+        // Подписка на изменения в Firebase
+        database.ref('pixels').on('value', (snapshot) => {
+            const pixels = snapshot.val();
+            if (pixels) {
+                Object.entries(pixels).forEach(([index, color]) => {
+                    const pixelElement = document.querySelector(`.pixel[data-index="${index}"]`);
+                    if (pixelElement) {
+                        pixelElement.style.backgroundColor = color;
+                    }
+                });
+            }
+        });
+
+        // Инициализация
+        createGrid();
+    </script>
+</body>
+</html>
