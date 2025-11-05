@@ -11,6 +11,14 @@
             color: #000;
             text-align: center;
         }
+        .tools {
+            margin-top: 20px;
+        }
+        .tools input, .tools button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
         .grid {
             display: grid;
             grid-template-columns: repeat(100, 10px); /* 1000 пикселей */
@@ -25,19 +33,14 @@
             border: 1px solid #ccc;
             cursor: pointer;
         }
-        .tools {
-            margin-bottom: 20px;
-        }
-        .tools button {
-            padding: 10px 20px;
-            margin: 5px;
-            font-size: 16px;
-            cursor: pointer;
+        .cooldown {
+            margin-top: 20px;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <h1>Pixel Art Multiplayer</h1>
+    <h1>🎨 Pixel Art Multiplayer</h1>
 
     <!-- Панель инструментов -->
     <div class="tools">
@@ -47,46 +50,47 @@
         <button id="eyedropperButton">Использовать пипетку</button>
     </div>
 
+    <!-- Сетка пикселей -->
     <div class="grid" id="pixelGrid"></div>
     <div class="cooldown" id="cooldownMessage"></div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
-    <script>
-        // Конфигурация Firebase (замените на свои данные)
+    <!-- Firebase SDK + Логика -->
+    <script type="module">
+        // Импортируем Firebase SDK через CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-database.js";
+
+        // Ваша конфигурация Firebase (замените на свои данные!)
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyBqyirSy0rIxj_VygUR_0dXPHvdR0LYZc0", // ← Замените!
+            authDomain: "pixelsithub.firebaseapp.com",          // ← Замените!
+            projectId: "pixelsithub",                           // ← Замените!
+            storageBucket: "pixelsithub.appspot.com",           // ← Замените!
+            messagingSenderId: "367605301479",                  // ← Замените!
+            appId: "1:367605301479:web:fc444cb9fb04c2fd8b6242", // ← Замените!
+            measurementId: "G-WWDH0PNVJY"                       // ← Замените!
         };
 
-        // Инициализация Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        // Инициализируем Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // --- ЛОГИКА ПИКСЕЛЬНОГО ИСКУССТВА ---
 
         const gridSize = 100; // Размер сетки 100x100 (1000 пикселей)
         let cooldown = false;
-
-        // Состояние сетки
-        let grid = Array(gridSize * gridSize).fill('#FFFFFF');
         let selectedColor = '#ffffff'; // Цвет по умолчанию
 
         // Создание сетки
         function createGrid() {
             const gridElement = document.getElementById('pixelGrid');
-            grid.forEach((color, index) => {
+            for (let i = 0; i < gridSize * gridSize; i++) {
                 const pixel = document.createElement('div');
                 pixel.classList.add('pixel');
-                pixel.style.backgroundColor = color;
-                pixel.dataset.index = index;
+                pixel.dataset.index = i;
                 pixel.addEventListener('click', handlePixelClick);
                 gridElement.appendChild(pixel);
-            });
+            }
         }
 
         // Обработка клика по пикселю
@@ -97,16 +101,15 @@
             }
 
             const index = event.target.dataset.index;
-            const color = selectedColor;
 
-            // Обновляем цвет на сервере Firebase
-            database.ref(`pixels/${index}`).set(color);
+            // Сохраняем цвет в Firebase
+            set(ref(database, `pixels/${index}`), selectedColor);
 
             // Запускаем таймер ожидания
             startCooldown();
         }
 
-        // Запуск таймера ожидания
+        // Таймер ожидания
         function startCooldown() {
             cooldown = true;
             document.getElementById('cooldownMessage').textContent = 'Подождите 15 минут...';
@@ -116,37 +119,34 @@
             }, 15 * 60 * 1000); // 15 минут
         }
 
-        // Обновление выбранного цвета из палитры
+        // Выбор цвета из палитры
         document.getElementById('colorPicker').addEventListener('input', (event) => {
             selectedColor = event.target.value;
         });
 
-        // Обработка пипетки
+        // Использование пипетки
         document.getElementById('eyedropperButton').addEventListener('click', async () => {
             if (!window.EyeDropper) {
-                alert('Ваш браузер не поддерживает пипетку. Попробуйте использовать Chrome.');
+                alert('Пипетка доступна только в Chrome/Edge');
                 return;
             }
-
-            const eyeDropper = new EyeDropper();
             try {
+                const eyeDropper = new EyeDropper();
                 const result = await eyeDropper.open();
                 selectedColor = result.sRGBHex;
-                document.getElementById('colorPicker').value = selectedColor; // Обновляем палитру
+                document.getElementById('colorPicker').value = selectedColor;
             } catch (error) {
                 console.error('Ошибка при использовании пипетки:', error);
             }
         });
 
         // Подписка на изменения в Firebase
-        database.ref('pixels').on('value', (snapshot) => {
+        onValue(ref(database, 'pixels'), (snapshot) => {
             const pixels = snapshot.val();
             if (pixels) {
                 Object.entries(pixels).forEach(([index, color]) => {
-                    const pixelElement = document.querySelector(`.pixel[data-index="${index}"]`);
-                    if (pixelElement) {
-                        pixelElement.style.backgroundColor = color;
-                    }
+                    const pixel = document.querySelector(`.pixel[data-index="${index}"]`);
+                    if (pixel) pixel.style.backgroundColor = color;
                 });
             }
         });
